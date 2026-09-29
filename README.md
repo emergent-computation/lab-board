@@ -1,9 +1,10 @@
 # lab-board — Emergent Computation lab members board · 课题组成员看板
 
 This repository only **hosts** the lab's members-only idea board on GitHub Pages.
-The page is a single encrypted file (AES-256-GCM, key from a shared passphrase via
-PBKDF2-SHA256); without the passphrase it reveals nothing beyond its approximate size.
-本仓库仅用于托管课题组成员看板：页面整体加密，需口令解锁。
+The board's contents are encrypted (AES-256-GCM, key from a shared passphrase via
+PBKDF2-SHA256) and readable only with the passphrase. Public by design: the viewer code,
+the file size, build ids and publication times (this repo's release and Actions history).
+本仓库仅用于托管课题组成员看板：看板内容加密，需口令解锁；页面程序、文件大小与发布时间公开。
 
 - **Source:** viewer and build tool live in the private `lab-tools` repo
   (`labtools/ideas/viewer/`, `labtools/ideas/board.py`); card data lives in the private `lab-hub`.
