@@ -1,0 +1,60 @@
+# Deploys the encrypted members board. The home-server publisher (lab-tools
+# `labtools ideas board publish`) uploads board.html to the release `board-latest`
+# and dispatches this workflow with the file's sha256; nothing here can decrypt it.
+name: deploy-board
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha256:
+        description: "sha256 of the board.html release asset (64 hex)"
+        required: true
+      build_id:
+        description: "board build id (for the run log only)"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Fetch and verify the encrypted board
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EXPECTED: ${{ inputs.sha256 }}
+          BUILD_ID: ${{ inputs.build_id }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED" =~ ^[0-9a-f]{64}$ ]] || { echo "sha256 input is not 64 lowercase hex"; exit 1; }
+          [[ "$BUILD_ID" =~ ^[A-Za-z0-9._:-]{1,80}$ ]] || { echo "build_id input has unexpected characters"; exit 1; }
+          mkdir -p site
+          gh release download board-latest --repo "$REPO" --pattern board.html --dir site
+          echo "$EXPECTED  site/board.html" | sha256sum --check --strict
+          size=$(stat -c %s site/board.html)
+          (( size > 1024 && size < 50000000 )) || { echo "unexpected size $size"; exit 1; }
+          mv site/board.html site/index.html
+          touch site/.nojekyll
+          printf 'User-agent: *\nDisallow: /\n' > site/robots.txt
+          echo "deploying build $BUILD_ID ($size bytes)"
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
